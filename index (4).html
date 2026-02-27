@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>日本の農業従事者 - 地域別分布</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  min-height: 100vh;
+  background: linear-gradient(160deg, #0f1923 0%, #1a2a1a 60%, #0f1923 100%);
+  font-family: 'Noto Sans JP', sans-serif;
+  color: #e8f5e9;
+  padding: 20px 14px 50px;
+}
+.header { text-align: center; margin-bottom: 20px; }
+.title {
+  font-size: clamp(18px, 5.5vw, 26px); font-weight: 900; letter-spacing: 1px;
+  background: linear-gradient(90deg, #22c55e, #84cc16);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  margin-bottom: 6px; line-height: 1.3;
+}
+.subtitle { color: #86efac; font-size: clamp(10px, 2.8vw, 12px); line-height: 1.6; }
+.tabs { display: flex; justify-content: center; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+.tab {
+  padding: 8px 14px; border-radius: 999px; border: none; cursor: pointer;
+  font-size: clamp(11px, 3vw, 13px); font-weight: 700;
+  font-family: 'Noto Sans JP', sans-serif; transition: all 0.2s;
+  -webkit-tap-highlight-color: transparent;
+}
+.tab.active { background: linear-gradient(90deg, #22c55e, #84cc16); color: #000; box-shadow: 0 0 14px #22c55e44; }
+.tab.inactive { background: rgba(255,255,255,0.07); color: #86efac; }
+.chart-box {
+  background: rgba(255,255,255,0.04);
+  border-radius: 18px; border: 1px solid rgba(134,239,172,0.15);
+  padding: 16px 12px 14px;
+  max-width: 600px; margin: 0 auto 16px;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.4);
+}
+.chart-title { text-align: center; color: #86efac; font-size: clamp(11px,3vw,13px); margin-bottom: 12px; font-weight: 700; }
+.age-legend { display: flex; justify-content: center; gap: 14px; margin-top: 10px; flex-wrap: wrap; }
+.age-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: #aaa; }
+.age-dot { width: 11px; height: 11px; border-radius: 3px; }
+.region-select-wrap { max-width: 600px; margin: 0 auto 14px; }
+.region-label { color: #86efac; font-size: 11px; margin-bottom: 6px; text-align: center; }
+.region-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.rgn-btn {
+  padding: 9px 4px; border-radius: 10px; border: 1px solid rgba(134,239,172,0.2);
+  background: rgba(255,255,255,0.04); color: #86efac;
+  font-size: clamp(9px, 2.5vw, 11px); font-weight: 700; cursor: pointer;
+  font-family: 'Noto Sans JP', sans-serif; text-align: center;
+  transition: all 0.15s; -webkit-tap-highlight-color: transparent; line-height: 1.3;
+}
+.rgn-btn.active { background: rgba(34,197,94,0.2); border-color: #22c55e; color: #fff; }
+.summary-grid {
+  max-width: 600px; margin: 0 auto 14px;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+}
+.sum-card {
+  background: rgba(255,255,255,0.04); border-radius: 14px; padding: 12px 14px;
+  border: 1px solid rgba(255,255,255,0.07);
+}
+.sum-emoji { font-size: 18px; margin-bottom: 4px; }
+.sum-label { color: #64748b; font-size: 10px; margin-bottom: 2px; }
+.sum-value { font-weight: 900; font-size: clamp(14px,4vw,18px); }
+.sum-sub { color: #64748b; font-size: 10px; margin-top: 2px; }
+.insight-row { display: flex; align-items: center; margin-bottom: 8px; }
+.insight-name { font-size: 11px; color: #ccc; min-width: 58px; }
+.insight-bar-wrap { flex: 1; margin: 0 8px; height: 7px; background: rgba(255,255,255,0.08); border-radius: 99px; overflow: hidden; }
+.insight-bar { height: 100%; border-radius: 99px; transition: width 0.5s ease; }
+.insight-num { font-size: 11px; font-weight: 700; min-width: 38px; text-align: right; }
+.view { display: none; }
+.view.active { display: block; }
+.note { text-align: center; color: #334155; font-size: 10px; margin-top: 18px; padding: 0 10px; line-height: 1.7; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="title">🗾 農業従事者 地域別分布</div>
+  <div class="subtitle">8地域 × 年齢層 × 従事者数<br>（2020年農林業センサス推計）</div>
+</div>
+
+<div class="tabs">
+  <button class="tab active" onclick="switchView('regional')">📊 地域比較</button>
+  <button class="tab inactive" onclick="switchView('bubble')">🫧 バブル</button>
+  <button class="tab inactive" onclick="switchView('detail')">🔍 地域詳細</button>
+  <button class="tab inactive" onclick="switchView('rank')">🏆 ランキング</button>
+</div>
+
+<!-- VIEW 1 -->
+<div id="view-regional" class="view active">
+  <div class="chart-box">
+    <div class="chart-title">地域別 農業従事者数と年齢層構成（千人）</div>
+    <canvas id="regionalChart"></canvas>
+    <div class="age-legend">
+      <div class="age-item"><div class="age-dot" style="background:#4ade80"></div>若年（〜49歳）</div>
+      <div class="age-item"><div class="age-dot" style="background:#facc15"></div>中年（50〜64歳）</div>
+      <div class="age-item"><div class="age-dot" style="background:#f87171"></div>高齢（65歳〜）</div>
+    </div>
+  </div>
+</div>
+
+
+<!-- VIEW BUBBLE -->
+<div id="view-bubble" class="view">
+  <div class="chart-box">
+    <div class="chart-title">作業の重さ × 平均年齢　（バブル＝従事者数）</div>
+    <div style="text-align:center;color:#64748b;font-size:10px;margin-bottom:10px">← 軽い作業（花き・野菜系）　　重い作業（米・麦）→</div>
+    <canvas id="bubbleChart"></canvas>
+  </div>
+  <div class="chart-box" style="padding:14px 16px">
+    <div class="chart-title" style="margin-bottom:10px">各地域の主要作物と特徴</div>
+    <div id="bubbleLegend" style="display:grid;grid-template-columns:1fr 1fr;gap:8px"></div>
+  </div>
+</div>
+
+<!-- VIEW 2 -->
+<div id="view-detail" class="view">
+  <div class="region-select-wrap">
+    <div class="region-label">地域を選んでください</div>
+    <div class="region-grid" id="regionBtns"></div>
+  </div>
+  <div class="summary-grid">
+    <div class="sum-card">
+      <div class="sum-emoji">👨‍🌾</div>
+      <div class="sum-label">農業従事者数（推計）</div>
+      <div class="sum-value" id="d-total">—</div>
+      <div class="sum-sub" id="d-pct">全国シェア —%</div>
+    </div>
+    <div class="sum-card">
+      <div class="sum-emoji">🎂</div>
+      <div class="sum-label">推計平均年齢</div>
+      <div class="sum-value" id="d-age">—</div>
+      <div class="sum-sub" id="d-age-label">—</div>
+    </div>
+    <div class="sum-card">
+      <div class="sum-emoji">🌱</div>
+      <div class="sum-label">若年（〜49歳）の割合</div>
+      <div class="sum-value" id="d-young">—</div>
+      <div class="sum-sub" id="d-young-abs">—千人</div>
+    </div>
+    <div class="sum-card">
+      <div class="sum-emoji">🌾</div>
+      <div class="sum-label">主要農産物</div>
+      <div class="sum-value" id="d-crop" style="font-size:clamp(11px,3vw,13px)">—</div>
+      <div class="sum-sub" id="d-feature">—</div>
+    </div>
+  </div>
+  <div class="chart-box">
+    <div class="chart-title" id="d-chart-title">年齢層構成（ドーナツ）</div>
+    <canvas id="detailChart"></canvas>
+  </div>
+</div>
+
+<!-- VIEW 3 -->
+<div id="view-rank" class="view">
+  <div class="chart-box">
+    <div class="chart-title">🌱 若年農業者（〜49歳）の割合</div>
+    <div id="youngRankList" style="padding:4px 0"></div>
+  </div>
+  <div class="chart-box">
+    <div class="chart-title">🎂 推計平均年齢（低い順＝若い）</div>
+    <div id="ageRankList" style="padding:4px 0"></div>
+  </div>
+  <div class="chart-box">
+    <div class="chart-title">👨‍🌾 農業従事者数（多い順）</div>
+    <div id="totalRankList" style="padding:4px 0"></div>
+  </div>
+</div>
+
+<p class="note">
+  ※ 2020年農林業センサス（農林水産省）都道府県データを基にした地域別推計値<br>
+  甲信越＝新潟・長野・山梨　中部＝富山・石川・福井・静岡・愛知・岐阜・三重
+</p>
+
+<script>
+const regions = [
+  { name:"北海道", short:"北海道", total:94,  young:18, middle:28, old:48,  avgAge:64, crops:"小麦・酪農・じゃがいも", feature:"大規模農業・機械化が進む", color:"#38bdf8" },
+  { name:"東北",   short:"東北",   total:238, young:19, middle:45, old:174, avgAge:71, crops:"米・りんご・野菜",       feature:"米どころ・高齢化が最も深刻", color:"#a78bfa" },
+  { name:"関東",   short:"関東",   total:162, young:22, middle:37, old:103, avgAge:68, crops:"野菜・米・畜産",         feature:"都市近郊農業・野菜大産地",  color:"#34d399" },
+  { name:"甲信越", short:"甲信越", total:118, young:14, middle:24, old:80,  avgAge:69, crops:"米・果物・野菜",          feature:"長野は多品目・高原野菜産地", color:"#fb923c" },
+  { name:"中部",   short:"中部",   total:155, young:23, middle:38, old:94,  avgAge:67, crops:"野菜・米・花き",          feature:"施設園芸・花き大産地（愛知）",color:"#fbbf24" },
+  { name:"関西",   short:"関西",   total:97,  young:12, middle:21, old:64,  avgAge:69, crops:"米・野菜・果物",          feature:"兵庫・京都で米・果樹が中心", color:"#f472b6" },
+  { name:"中国・四国", short:"中国四国", total:165, young:14, middle:31, old:120, avgAge:71, crops:"米・みかん・野菜", feature:"中山間地域多く高齢化深刻",  color:"#4ade80" },
+  { name:"九州・沖縄", short:"九州沖縄", total:334, young:47, middle:74, old:213, avgAge:67, crops:"野菜・畜産・さとうきび", feature:"農業従事者最多・比較的若い",  color:"#f87171" },
+];
+const totalNation = regions.reduce((s,r) => s+r.total, 0);
+const GRID = "rgba(255,255,255,0.07)", TICK = "#86efac";
+
+// --- View 1 ---
+new Chart(document.getElementById("regionalChart"), {
+  type: "bar",
+  data: {
+    labels: regions.map(r => r.short),
+    datasets: [
+      { label:"若年（〜49歳）",  data: regions.map(r=>r.young),  backgroundColor:"#4ade80", stack:"a" },
+      { label:"中年（50〜64歳）",data: regions.map(r=>r.middle), backgroundColor:"#facc15", stack:"a" },
+      { label:"高齢（65歳〜）",  data: regions.map(r=>r.old),   backgroundColor:"#f87171", stack:"a", borderRadius:{topLeft:4,topRight:4} },
+    ]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { display: false },
+      tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}：${ctx.raw}千人` } }
+    },
+    scales: {
+      x: { stacked:true, ticks:{color:TICK,font:{size:9},maxRotation:30}, grid:{color:GRID} },
+      y: { stacked:true, ticks:{color:TICK,callback:v=>v+"千"}, grid:{color:GRID} }
+    }
+  }
+});
+
+// --- View 2 ---
+let detailChart = null;
+const btnWrap = document.getElementById("regionBtns");
+regions.forEach((r,i) => {
+  const b = document.createElement("button");
+  b.className = "rgn-btn" + (i===0?" active":"");
+  b.textContent = r.short;
+  b.onclick = () => {
+    document.querySelectorAll(".rgn-btn").forEach((x,j) => x.className="rgn-btn"+(j===i?" active":""));
+    updateDetail(i);
+  };
+  btnWrap.appendChild(b);
+});
+
+function updateDetail(i) {
+  const r = regions[i];
+  const yPct = (r.young/r.total*100).toFixed(1);
+  document.getElementById("d-total").textContent = r.total+"千人";
+  document.getElementById("d-total").style.color = r.color;
+  document.getElementById("d-pct").textContent = `全国シェア ${(r.total/totalNation*100).toFixed(1)}%`;
+  const ageEl = document.getElementById("d-age");
+  ageEl.textContent = r.avgAge+"歳";
+  ageEl.style.color = r.avgAge>=70?"#f87171":r.avgAge>=68?"#facc15":"#4ade80";
+  document.getElementById("d-age-label").textContent = r.avgAge>=70?"⚠️ 高齢化深刻":r.avgAge<=65?"✅ 比較的若い":"平均的レベル";
+  document.getElementById("d-young").textContent = yPct+"%";
+  document.getElementById("d-young").style.color = "#4ade80";
+  document.getElementById("d-young-abs").textContent = r.young+"千人";
+  document.getElementById("d-crop").textContent = r.crops;
+  document.getElementById("d-feature").textContent = r.feature;
+  document.getElementById("d-chart-title").textContent = r.name + " の年齢層構成";
+
+  if (detailChart) detailChart.destroy();
+  detailChart = new Chart(document.getElementById("detailChart"), {
+    type: "doughnut",
+    data: {
+      labels: ["若年（〜49歳）","中年（50〜64歳）","高齢（65歳〜）"],
+      datasets: [{ data:[r.young,r.middle,r.old],
+        backgroundColor:["#4ade80bb","#facc15bb","#f87171bb"],
+        borderColor:["#4ade80","#facc15","#f87171"], borderWidth:2, hoverOffset:8 }]
+    },
+    options: {
+      responsive: true, cutout:"60%",
+      plugins: {
+        legend: { position:"bottom", labels:{color:"#ccc",font:{size:11},boxWidth:12,padding:12} },
+        tooltip: { callbacks: { label: ctx=>`${ctx.label}：${ctx.raw}千人 (${Math.round(ctx.raw/r.total*100)}%)` }}
+      }
+    }
+  });
+}
+updateDetail(0);
+
+// --- View 3 ---
+function buildRanking(listId, sortedData, valFn, colorFn, formatFn) {
+  const wrap = document.getElementById(listId);
+  const maxVal = valFn(sortedData[0]);
+  sortedData.forEach((r,i) => {
+    const v = valFn(r);
+    const pct = Math.round(v/maxVal*100);
+    wrap.innerHTML += `<div class="insight-row">
+      <div class="insight-name" style="color:${r.color}">${i+1}. ${r.short}</div>
+      <div class="insight-bar-wrap"><div class="insight-bar" style="width:${pct}%;background:${r.color}88"></div></div>
+      <div class="insight-num" style="color:${colorFn(r)}">${formatFn(r,v)}</div>
+    </div>`;
+  });
+}
+
+buildRanking("youngRankList",
+  [...regions].sort((a,b) => b.young/b.total - a.young/a.total),
+  r => r.young/r.total,
+  r => "#4ade80",
+  (r,v) => (v*100).toFixed(1)+"%"
+);
+buildRanking("ageRankList",
+  [...regions].sort((a,b) => a.avgAge - b.avgAge),
+  r => 80-r.avgAge,
+  r => r.avgAge>=70?"#f87171":r.avgAge>=68?"#facc15":"#4ade80",
+  (r) => r.avgAge+"歳"
+);
+buildRanking("totalRankList",
+  [...regions].sort((a,b) => b.total - a.total),
+  r => r.total,
+  r => r.color,
+  (r) => r.total+"千人"
+);
+
+
+// --- Bubble chart: weightIndex = weighted avg of main crop heaviness ---
+// 重さ指数: 米5, 麦5, 酪農4, 畜産4, 果樹3.5, 野菜3, 花き1.5, さとうきび4
+const bubbleRegions = [
+  { ...regions[0], weight: 4.2 }, // 北海道: 小麦・酪農・じゃがいも
+  { ...regions[1], weight: 4.6 }, // 東北: 米・りんご
+  { ...regions[2], weight: 3.2 }, // 関東: 野菜・米・畜産
+  { ...regions[3], weight: 4.0 }, // 甲信越: 米・果物
+  { ...regions[4], weight: 2.6 }, // 中部: 野菜・花き
+  { ...regions[5], weight: 3.8 }, // 関西: 米・野菜
+  { ...regions[6], weight: 4.4 }, // 中国四国: 米・みかん
+  { ...regions[7], weight: 3.0 }, // 九州沖縄: 野菜・畜産・さとうきび
+];
+
+// Label plugin
+const labelPlugin = {
+  id: 'bubbleLabels',
+  afterDatasetsDraw(chart) {
+    const ctx = chart.ctx;
+    chart.data.datasets.forEach((ds, i) => {
+      const meta = chart.getDatasetMeta(i);
+      meta.data.forEach(el => {
+        const {x, y} = el.getProps(['x','y'], true);
+        const r = ds.data[0].r;
+        ctx.save();
+        ctx.font = `bold ${Math.max(8, Math.min(r*0.55, 13))}px 'Noto Sans JP',sans-serif`;
+        ctx.fillStyle = 'rgba(255,255,255,0.92)';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(ds.data[0].label, x, y);
+        ctx.restore();
+      });
+    });
+  }
+};
+
+new Chart(document.getElementById("bubbleChart"), {
+  type: "bubble",
+  plugins: [labelPlugin],
+  data: {
+    datasets: bubbleRegions.map(r => ({
+      label: r.short,
+      data: [{ x: r.weight, y: r.avgAge, r: Math.round(Math.sqrt(r.total)*2.2), label: r.short }],
+      backgroundColor: r.color + "bb",
+      borderColor: r.color,
+      borderWidth: 1.5,
+    }))
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { display: false },
+      tooltip: { callbacks: {
+        label: ctx => {
+          const r = bubbleRegions[ctx.datasetIndex];
+          return [` ${r.name}`, ` 重さ指数: ${r.weight}`, ` 平均年齢: ${r.avgAge}歳`, ` 従事者数: ${r.total}千人`];
+        }
+      }}
+    },
+    scales: {
+      x: {
+        min: 1.5, max: 5.2,
+        title: { display: true, text: '← 軽い作業　　　重い作業 →', color: TICK, font:{size:10} },
+        ticks: { color: TICK, font:{size:9}, callback: v => ({2:'軽い',3:'中程度',4:'やや重',5:'重い'}[v]||'') },
+        grid: { color: GRID }
+      },
+      y: {
+        min: 60, max: 75,
+        title: { display: true, text: '平均年齢（歳）', color: TICK, font:{size:10} },
+        ticks: { color: TICK, font:{size:10}, callback: v => v+'歳' },
+        grid: { color: GRID }
+      }
+    }
+  }
+});
+
+// Legend cards
+const bLegend = document.getElementById("bubbleLegend");
+bubbleRegions.forEach(r => {
+  bLegend.innerHTML += `<div style="display:flex;gap:8px;align-items:flex-start;background:rgba(255,255,255,0.04);border-radius:10px;padding:8px 10px;border:1px solid ${r.color}44">
+    <div style="width:10px;height:10px;border-radius:50%;background:${r.color};margin-top:3px;flex-shrink:0"></div>
+    <div>
+      <div style="font-size:11px;font-weight:700;color:${r.color}">${r.short}</div>
+      <div style="font-size:9px;color:#64748b;margin-top:1px">${r.crops}</div>
+    </div>
+  </div>`;
+});
+
+
+// --- Tab ---
+function switchView(v) {
+  document.querySelectorAll(".view").forEach(el => el.classList.remove("active"));
+  document.getElementById("view-"+v).classList.add("active");
+  const keys = ["regional","bubble","detail","rank"];
+  document.querySelectorAll(".tab").forEach((t,i) => t.className="tab "+(keys[i]===v?"active":"inactive"));
+}
+</script>
+</body>
+</html>
